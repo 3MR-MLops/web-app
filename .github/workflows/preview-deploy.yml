@@ -26,6 +26,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./web-app/frontend
+          file: ./web-app/frontend/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/webapp-frontend:${{ env.IMAGE_TAG }}
           
