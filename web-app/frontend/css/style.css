@@ -234,8 +234,8 @@ input::placeholder { color: var(--text-muted); }
   position: absolute;
   top: 10px;
   left: 10px;
-  background: #005eff;
-  color: #fff;
+  background: #ffffff;
+  color: #e51b1b;
   font-size: 0.7rem;
   font-weight: 700;
   padding: 3px 9px;
@@ -291,9 +291,9 @@ input::placeholder { color: var(--text-muted); }
 }
 
 .star { font-size: 0.85rem; }
-.star.full  { color: #f5a623; }
+.star.full  { color: #d905ff; }
 .star.half  { color: #f5a623; opacity: 0.6; }
-.star.empty { color: #555; }
+.star.empty { color: #555555; }
 
 .review-count {
   font-size: 0.75rem;
