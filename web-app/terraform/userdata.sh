@@ -34,8 +34,8 @@ echo "✔ Docker & AWS CLI installed"
 # ── 3. Clone Application ──────────────────────────────────────────────────────
 cd /home/ubuntu
 git clone https://github.com/3MR-MLops/web-app.git
-cd web-app/ecommerce-microservices
-echo "✔ Repository cloned (branch: $(git branch --show-current))"
+cd web-app/web-app/ecommerce-microservices
+echo "✔ Repository cloned"
 
 # ── 4. Create .env File ───────────────────────────────────────────────────────
 cat > .env << 'EOF'
@@ -104,7 +104,7 @@ cat > /usr/local/bin/backup-mongo.sh << 'BACKUP_EOF'
 #!/bin/bash
 TIMESTAMP=$(date +%Y-%m-%dT%H-%M-%S)
 BUCKET="${s3_bucket}"
-COMPOSE_DIR=/home/ubuntu/web-app/ecommerce-microservices
+COMPOSE_DIR=/home/ubuntu/web-app/web-app/ecommerce-microservices
 
 cd $COMPOSE_DIR
 CONTAINER=$(docker compose ps -q mongodb 2>/dev/null | head -1)
