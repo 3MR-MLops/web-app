@@ -5,6 +5,14 @@ resource "aws_launch_template" "app" {
   instance_type = var.instance_type
   key_name      = var.key_name
 
+  block_device_mappings {
+    device_name = "/dev/sda1"
+    ebs {
+      volume_size = 20
+      volume_type = "gp3"
+    }
+  }
+
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2.name
   }
