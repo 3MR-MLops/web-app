@@ -3,26 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShopMicro | E-Commerce</title>
+  <title>ShopMicro | Premium E-Commerce</title>
+  <meta name="description" content="ShopMicro — your premium e-commerce experience with fast delivery and amazing products." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
+  <!-- ===== BACKGROUND BLOBS ===== -->
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
   <!-- ===== NAV ===== -->
   <nav class="navbar">
-    <div class="nav-brand">🛒 ShopMicro</div>
+    <div class="nav-brand">
+      <span class="brand-icon">⚡</span>
+      <span class="brand-text">ShopMicro</span>
+    </div>
+
     <div class="nav-links">
-      <a href="#" onclick="showSection('catalog')">Products</a>
-      <a href="#" onclick="showSection('cart')">Cart <span id="cart-count" class="badge">0</span></a>
-      <a href="#" onclick="showSection('orders')">My Orders</a>
+      <a href="#" onclick="showSection('catalog')" id="nav-catalog">
+        <span class="nav-icon">🛍️</span> Products
+      </a>
+      <a href="#" onclick="showSection('cart')" id="nav-cart">
+        <span class="nav-icon">🛒</span> Cart
+        <span id="cart-count" class="badge">0</span>
+      </a>
+      <a href="#" onclick="showSection('orders')" id="nav-orders">
+        <span class="nav-icon">📦</span> Orders
+      </a>
     </div>
+
     <div class="nav-auth" id="nav-auth">
-      <button onclick="showSection('login')" class="btn btn-outline">Login</button>
-      <button onclick="showSection('register')" class="btn btn-primary">Register</button>
+      <button onclick="showSection('login')" class="btn btn-ghost">Login</button>
+      <button onclick="showSection('register')" class="btn btn-primary">Get Started</button>
     </div>
+
     <div class="nav-user hidden" id="nav-user">
+      <div class="user-avatar" id="user-avatar-initial"></div>
       <span id="username-display"></span>
-      <button onclick="logout()" class="btn btn-outline">Logout</button>
+      <button onclick="logout()" class="btn btn-ghost btn-sm">Logout</button>
     </div>
   </nav>
 
@@ -34,71 +57,146 @@
 
     <!-- LOGIN -->
     <section id="section-login" class="auth-box hidden">
-      <h2>Login</h2>
-      <form id="login-form">
-        <input type="email" id="login-email" placeholder="Email" required />
-        <input type="password" id="login-password" placeholder="Password" required />
-        <button type="submit" class="btn btn-primary full-width">Login</button>
+      <div class="auth-header">
+        <div class="auth-icon">🔑</div>
+        <h2>Welcome Back</h2>
+        <p class="auth-subtitle">Sign in to your account</p>
+      </div>
+      <form id="login-form" autocomplete="on">
+        <div class="input-group">
+          <span class="input-icon">✉️</span>
+          <input type="email" id="login-email" placeholder="Email address" required autocomplete="email" />
+        </div>
+        <div class="input-group">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary full-width btn-lg">
+          <span>Sign In</span>
+          <span class="btn-arrow">→</span>
+        </button>
       </form>
-      <p>Don't have an account? <a href="#" onclick="showSection('register')">Register</a></p>
+      <p class="auth-switch">Don't have an account? <a href="#" onclick="showSection('register')">Create one</a></p>
     </section>
 
     <!-- REGISTER -->
     <section id="section-register" class="auth-box hidden">
-      <h2>Register</h2>
-      <form id="register-form">
-        <input type="text" id="reg-name" placeholder="Full Name" required />
-        <input type="email" id="reg-email" placeholder="Email" required />
-        <input type="password" id="reg-password" placeholder="Password" required />
-        <button type="submit" class="btn btn-primary full-width">Create Account</button>
+      <div class="auth-header">
+        <div class="auth-icon">✨</div>
+        <h2>Create Account</h2>
+        <p class="auth-subtitle">Join thousands of happy shoppers</p>
+      </div>
+      <form id="register-form" autocomplete="on">
+        <div class="input-group">
+          <span class="input-icon">👤</span>
+          <input type="text" id="reg-name" placeholder="Full name" required autocomplete="name" />
+        </div>
+        <div class="input-group">
+          <span class="input-icon">✉️</span>
+          <input type="email" id="reg-email" placeholder="Email address" required autocomplete="email" />
+        </div>
+        <div class="input-group">
+          <span class="input-icon">🔒</span>
+          <input type="password" id="reg-password" placeholder="Password (min 6 chars)" required autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-primary full-width btn-lg">
+          <span>Create Account</span>
+          <span class="btn-arrow">→</span>
+        </button>
       </form>
-      <p>Already have an account? <a href="#" onclick="showSection('login')">Login</a></p>
+      <p class="auth-switch">Already have an account? <a href="#" onclick="showSection('login')">Sign in</a></p>
     </section>
 
     <!-- CATALOG -->
     <section id="section-catalog" class="hidden">
       <div class="section-header">
-        <h2>🛍️ Products</h2>
-        <input type="text" id="search-input" placeholder="Search products..." oninput="filterProducts()" />
+        <div>
+          <h2 class="section-title">🛍️ Products</h2>
+          <p class="section-sub">Discover our curated collection</p>
+        </div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search products..." oninput="filterProducts()" />
+        </div>
       </div>
       <div id="products-grid" class="products-grid">
-        <div class="loading">Loading products...</div>
+        <div class="loading">
+          <div class="spinner"></div>
+          <span>Loading products…</span>
+        </div>
       </div>
     </section>
 
     <!-- CART -->
     <section id="section-cart" class="hidden">
-      <h2>🛒 Your Cart</h2>
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">🛒 Your Cart</h2>
+          <p class="section-sub">Review your selected items</p>
+        </div>
+      </div>
       <div id="cart-items"></div>
       <div id="cart-summary" class="cart-summary hidden">
         <div class="cart-total">Total: $<span id="cart-total">0.00</span></div>
-        <button class="btn btn-primary" onclick="checkout()">Proceed to Checkout</button>
+        <button class="btn btn-primary btn-lg" onclick="checkout()">
+          Checkout <span class="btn-arrow">→</span>
+        </button>
       </div>
-      <p id="cart-empty" class="empty-msg">Your cart is empty.</p>
+      <p id="cart-empty" class="empty-msg">
+        <span class="empty-icon">🛒</span><br />Your cart is empty
+      </p>
     </section>
 
     <!-- ORDERS -->
     <section id="section-orders" class="hidden">
-      <h2>📦 My Orders</h2>
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">📦 My Orders</h2>
+          <p class="section-sub">Track your purchase history</p>
+        </div>
+      </div>
       <div id="orders-list"></div>
-      <p id="orders-empty" class="empty-msg hidden">No orders yet.</p>
+      <p id="orders-empty" class="empty-msg hidden">
+        <span class="empty-icon">📭</span><br />No orders yet
+      </p>
     </section>
 
     <!-- CHECKOUT -->
     <section id="section-checkout" class="auth-box hidden">
-      <h2>💳 Checkout</h2>
+      <div class="auth-header">
+        <div class="auth-icon">💳</div>
+        <h2>Checkout</h2>
+        <p class="auth-subtitle">Complete your purchase securely</p>
+      </div>
       <form id="payment-form">
-        <h3>Shipping Details</h3>
-        <input type="text" id="ship-address" placeholder="Address" required />
-        <input type="text" id="ship-city" placeholder="City" required />
-        <h3>Payment Details</h3>
-        <input type="text" id="card-number" placeholder="Card Number (16 digits)" maxlength="16" required />
-        <div class="row-2">
-          <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required />
-          <input type="text" id="card-cvv" placeholder="CVV" maxlength="3" required />
+        <div class="form-label">🏠 Shipping Details</div>
+        <div class="input-group">
+          <span class="input-icon">📍</span>
+          <input type="text" id="ship-address" placeholder="Street address" required />
         </div>
-        <button type="submit" class="btn btn-primary full-width">Place Order</button>
-        <button type="button" class="btn btn-outline full-width" onclick="showSection('cart')">Back to Cart</button>
+        <div class="input-group">
+          <span class="input-icon">🏙️</span>
+          <input type="text" id="ship-city" placeholder="City" required />
+        </div>
+        <div class="form-label" style="margin-top:1rem;">💳 Payment Details</div>
+        <div class="input-group">
+          <span class="input-icon">💳</span>
+          <input type="text" id="card-number" placeholder="Card number (16 digits)" maxlength="16" required />
+        </div>
+        <div class="row-2">
+          <div class="input-group">
+            <span class="input-icon">📅</span>
+            <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required />
+          </div>
+          <div class="input-group">
+            <span class="input-icon">🔐</span>
+            <input type="text" id="card-cvv" placeholder="CVV" maxlength="3" required />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary full-width btn-lg">
+          <span>Place Order</span> <span class="btn-arrow">🎉</span>
+        </button>
+        <button type="button" class="btn btn-ghost full-width" onclick="showSection('cart')">← Back to Cart</button>
       </form>
     </section>
 
