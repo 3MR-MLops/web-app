@@ -4,6 +4,7 @@
 # Runs once on first launch. All output is logged to /var/log/userdata.log
 # =============================================================================
 exec > /var/log/userdata.log 2>&1
+set -e  # stop on any error so we know exactly where it failed
 echo "=== ShopMicro Deploy Start: $(date) ==="
 
 # ── 1. Swap Space (critical for t3.micro — only 1GB RAM) ──────────────────────
@@ -12,28 +13,29 @@ chmod 600 /swapfile
 mkswap /swapfile
 swapon /swapfile
 echo '/swapfile none swap sw 0 0' >> /etc/fstab
-echo "✔ Swap enabled"
+sysctl vm.swappiness=60
+echo "✔ Swap 2GB enabled"
 
 # ── 2. System Dependencies ────────────────────────────────────────────────────
 apt-get update -y
-apt-get install -y docker.io git awscli
+apt-get install -y docker.io git curl awscli
 systemctl start docker
 systemctl enable docker
 usermod -aG docker ubuntu
-echo "✔ Docker installed"
+echo "✔ Docker installed: $(docker --version)"
 
 # Install Docker Compose v2 plugin
 mkdir -p /usr/local/lib/docker/cli-plugins
 curl -sSL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-echo "✔ Docker Compose installed"
+echo "✔ Docker Compose installed: $(docker compose version)"
 
 # ── 3. Clone Application ──────────────────────────────────────────────────────
 cd /home/ubuntu
 git clone https://github.com/3MR-MLops/web-app.git
 cd web-app/ecommerce-microservices
-echo "✔ Repository cloned"
+echo "✔ Repository cloned (branch: $(git branch --show-current))"
 
 # ── 4. Create .env File ───────────────────────────────────────────────────────
 cat > .env << 'EOF'
@@ -49,58 +51,79 @@ S3_BACKUP_BUCKET=${s3_bucket}
 EOF
 echo "✔ .env created"
 
-# ── 5. Build & Start Services (sequential to stay within RAM limits) ──────────
-echo "Building nginx first for immediate frontend availability..."
+# ── 5. Start Infrastructure Services First (DBs, Cache) ───────────────────────
+echo ">>> Starting infrastructure services..."
+docker compose up -d mongodb redis db
+sleep 20
+echo "✔ DBs & Redis up"
+
+# ── 6. Build Nginx (serves frontend immediately → ALB health check passes) ────
+echo ">>> Building nginx..."
 docker compose build nginx
 docker compose up -d nginx
+echo "✔ Nginx up — ALB health check will pass now"
 
-echo "Starting backend services sequentially..."
-for service in mongodb redis db user-service catalog-services cart-services order-services payment-service; do
-  echo "Starting: $service"
+# Wait and confirm nginx is serving
+sleep 5
+HTTP_CODE=$(curl -s -I http://localhost | head -1 | awk '{print $2}' || echo "000")
+echo ">>> Nginx health check: HTTP $HTTP_CODE"
+
+# ── 7. Build Backend Services Sequentially (save RAM on t3.micro) ─────────────
+for service in user-service catalog-services cart-services order-services payment-service; do
+  echo ">>> Building: $service"
+  docker compose build "$service"
   docker compose up -d "$service"
-  sleep 10
+  sleep 15
 done
 
-# Final reconciliation — start anything still stopped
+echo "✔ All backend services started"
+
+# ── 8. Final reconciliation ────────────────────────────────────────────────────
 docker compose up -d
-echo "✔ All services started"
+echo "✔ docker compose up -d complete"
 
-# ── 6. Seed Products ──────────────────────────────────────────────────────────
-sleep 20
-echo "Seeding catalog with sample products..."
-curl -s -X POST http://localhost/api/products/seed || true
-echo "✔ Catalog seeded"
+# ── 9. Seed Products (wait for catalog to be ready) ───────────────────────────
+echo ">>> Waiting for catalog service to be ready..."
+for i in $(seq 1 12); do
+  sleep 10
+  HTTP=$(curl -s -I http://localhost/api/products | head -1 | awk '{print $2}' || echo "000")
+  echo "    Attempt $i: /api/products → HTTP $HTTP"
+  if [ "$HTTP" = "200" ]; then
+    curl -s -X POST http://localhost/api/products/seed
+    echo "✔ Catalog seeded successfully"
+    break
+  fi
+done
 
-# ── 7. Setup MongoDB → S3 Backup Cron (runs every 6 hours) ───────────────────
+# ── 10. Show running containers ────────────────────────────────────────────────
+docker compose ps
+echo "=== ShopMicro Deploy Complete: $(date) ==="
+
+# ── 11. Setup MongoDB → S3 Backup Cron (every 6 hours) ───────────────────────
 cat > /usr/local/bin/backup-mongo.sh << 'BACKUP_EOF'
 #!/bin/bash
 TIMESTAMP=$(date +%Y-%m-%dT%H-%M-%S)
 BUCKET="${s3_bucket}"
+COMPOSE_DIR=/home/ubuntu/web-app/ecommerce-microservices
 
-echo "[$TIMESTAMP] Starting MongoDB backup..."
+cd $COMPOSE_DIR
+CONTAINER=$(docker compose ps -q mongodb 2>/dev/null | head -1)
+if [ -z "$CONTAINER" ]; then
+  echo "[$TIMESTAMP] MongoDB container not found, skipping backup"
+  exit 1
+fi
 
-# Dump from the running MongoDB container
-docker exec ecommerce-microservices-mongodb-1 \
+docker exec "$CONTAINER" \
   mongodump --uri="mongodb://admin:Amr123@localhost:27017/admin?authSource=admin" \
-  --out="/tmp/mongodump-$TIMESTAMP" 2>/dev/null
+  --archive="/tmp/mongo-backup-$TIMESTAMP.gz" --gzip 2>/dev/null
 
-# Compress
-tar -czf "/tmp/mongo-backup-$TIMESTAMP.tar.gz" -C /tmp "mongodump-$TIMESTAMP"
+aws s3 cp "/tmp/mongo-backup-$TIMESTAMP.gz" \
+  "s3://$BUCKET/mongodb-backups/mongo-backup-$TIMESTAMP.gz"
 
-# Upload to S3
-aws s3 cp "/tmp/mongo-backup-$TIMESTAMP.tar.gz" \
-  "s3://$BUCKET/mongodb-backups/mongo-backup-$TIMESTAMP.tar.gz"
-
-# Cleanup local temp files
-rm -rf "/tmp/mongodump-$TIMESTAMP" "/tmp/mongo-backup-$TIMESTAMP.tar.gz"
-
-echo "[$TIMESTAMP] Backup uploaded to s3://$BUCKET/mongodb-backups/"
+rm -f "/tmp/mongo-backup-$TIMESTAMP.gz"
+echo "[$TIMESTAMP] Backup → s3://$BUCKET/mongodb-backups/mongo-backup-$TIMESTAMP.gz"
 BACKUP_EOF
 
 chmod +x /usr/local/bin/backup-mongo.sh
-
-# Add cron job — every 6 hours
 (crontab -l 2>/dev/null; echo "0 */6 * * * /usr/local/bin/backup-mongo.sh >> /var/log/mongo-backup.log 2>&1") | crontab -
-echo "✔ MongoDB backup cron job configured (every 6 hours → s3://${s3_bucket})"
-
-echo "=== ShopMicro Deploy Complete: $(date) ==="
+echo "✔ MongoDB S3 backup cron configured (every 6h)"

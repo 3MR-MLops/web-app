@@ -25,10 +25,10 @@ resource "aws_lb_target_group" "app" {
     port                = "traffic-port"
     protocol            = "HTTP"
     healthy_threshold   = 2
-    unhealthy_threshold = 5
-    timeout             = 10
-    interval            = 30
-    matcher             = "200"
+    unhealthy_threshold = 10 
+    timeout             = 30
+    interval            = 60
+    matcher             = "200-404" 
   }
 
   lifecycle {

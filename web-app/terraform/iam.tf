@@ -1,7 +1,7 @@
 # ─── IAM Role for EC2 (SSM access + S3 write) ────────────────────────────────
 resource "aws_iam_role" "ec2" {
   name        = "${local.name_prefix}-ec2-role"
-  description = "Role assumed by EC2 instances — allows SSM access and S3 writes for backups"
+ description = "Role assumed by EC2 instances - allows SSM access and S3 writes for backups"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
