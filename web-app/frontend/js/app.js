@@ -16,6 +16,17 @@ const API = {
 let currentUser = JSON.parse(localStorage.getItem('user')) || null;
 let allProducts = [];
 
+// Category emoji map (used in cart rendering)
+const categoryEmoji = {
+  electronics: '💻',
+  clothing:    '👕',
+  books:       '📚',
+  food:        '🍎',
+  sports:      '⚽',
+  home:        '🏠',
+  default:     '📦',
+};
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   updateAuthUI();
@@ -44,7 +55,9 @@ function updateAuthUI() {
   if (currentUser) {
     navAuth.classList.add('hidden');
     navUser.classList.remove('hidden');
-    document.getElementById('username-display').textContent = `👤 ${currentUser.name}`;
+    document.getElementById('username-display').textContent = currentUser.name;
+    const avatarEl = document.getElementById('user-avatar-initial');
+    if (avatarEl) avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
   } else {
     navAuth.classList.remove('hidden');
     navUser.classList.add('hidden');
@@ -109,12 +122,15 @@ function logout() {
 
 // ===== LOAD PRODUCTS =====
 async function loadProducts() {
+  console.log('Fetching products from:', `${API.catalog}/api/products`);
   try {
     const res = await fetch(`${API.catalog}/api/products`);
     const data = await res.json();
+    console.log('Products received:', data);
     allProducts = data;
     renderProducts(allProducts);
-  } catch {
+  } catch (err) {
+    console.error('Error loading products:', err);
     document.getElementById('products-grid').innerHTML =
       '<p class="loading">⚠️ Could not load products. Is Catalog Service running?</p>';
   }
@@ -191,7 +207,7 @@ async function addToCart(productId, name, price) {
     const res = await fetch(`${API.cart}/api/cart/${currentUser.id}/add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId, name, price: 0, quantity: 1 }),
+      body: JSON.stringify({ productId, name, price, quantity: 1 }),
     });
     if (!res.ok) throw new Error('Could not add to cart');
     showToast(`${name} added to cart!`, 'success');
@@ -313,7 +329,7 @@ async function handlePlaceOrder(e) {
     const cartData = await cartRes.json();
     if (!cartData.items?.length) { showToast('Your cart is empty.', 'error'); return; }
 
-    const totalAmount = 0;
+    const totalAmount = cartData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     // 2. Process payment
     const payRes = await fetch(`${API.payment}/api/payments/process`, {
@@ -396,11 +412,13 @@ function renderOrders(orders) {
 }
 
 // ===== TOAST =====
+let _toastTimer = null;
 function showToast(msg, type = 'success') {
   const toast = document.getElementById('toast');
   toast.textContent = type === 'success' ? `✅ ${msg}` : `❌ ${msg}`;
   toast.className = `toast ${type}`;
-  setTimeout(() => toast.classList.add('hidden'), 3500);
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { toast.className = 'toast hidden'; }, 3500);
 }
 
 // ===== HELPERS =====
