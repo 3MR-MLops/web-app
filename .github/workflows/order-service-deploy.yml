@@ -1,16 +1,11 @@
 # =============================================================================
-# Order Service — Build & Deploy to Production
-# Triggers on push to main when order-service code changes
+# Order Service — Build & Deploy to Production (ECR Version)
 # =============================================================================
 name: "Backend: Deploy Order Service"
 
 on:
   push:
     branches: ["main"]
-    paths:
-      - "web-app/ecommerce-microservices/services/order-service/**"
-  pull_request:
-    branches: ["main", "feature/*"]
     paths:
       - "web-app/ecommerce-microservices/services/order-service/**"
 
@@ -25,40 +20,44 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./web-app/ecommerce-microservices/services/order-service
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/webapp-order-service:v${{ github.run_number }}
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::644981759771:role/GitHubActionRole
           aws-region: us-east-1
 
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.registry }}
+          ECR_REPOSITORY: prod-order-service
+          IMAGE_TAG: v${{ github.run_number }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./web-app/ecommerce-microservices/services/order-service
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
       - name: Update GitOps Repository
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
           git clone https://${{ secrets.GITOPS_TOKEN }}@github.com/3MR-MLops/web-app-gitops.git gitops-repo
-
           cd gitops-repo
-          # Update tag while preserving indentation
-          sed -i '/image: webapp-order-service/{n;s/\(tag: \).*/\1"v${{ github.run_number }}"/}' deployment.yaml
-
+          sed -i 's|image: .*webapp-order-service.*|image: ${{ steps.login-ecr.registry }}/prod-order-service|' deployment.yaml
+          sed -i '/image: .*prod-order-service/{n;s/\(tag: \).*/\1"v${{ github.run_number }}"/}' deployment.yaml
           if [ -n "$(git status --porcelain)" ]; then
             git add deployment.yaml
-            git commit -m "Update order-service image tag to v${{ github.run_number }} [skip ci]"
+            git commit -m "Update order-service to ECR v${{ github.run_number }} [skip ci]"
             git push
-          else
-            echo "No changes detected in deployment.yaml"
           fi
+
+      - name: Trigger Update on EC2 via SSM
+        run: |
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Name,Values=shop-prod-instance" \
+            --comment "Update order-service to v${{ github.run_number }} from ECR" \
+            --parameters 'commands=["cd /home/ubuntu/web-app/web-app/ecommerce-microservices", "docker-compose pull order-service", "docker-compose up -d order-service"]' \
+            --region us-east-1
